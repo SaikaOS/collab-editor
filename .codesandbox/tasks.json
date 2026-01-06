@@ -1,0 +1,18 @@
+{
+  "setupTasks": [
+    {
+      "command": "npm install --legacy-peer-deps", 
+      "name": "Installing Dependencies"
+    }
+  ],
+  "tasks": {
+    "dev": {
+      "name": "dev",
+      "command": "npm run dev",
+      "runAtStart": true,
+      "preview": {
+        "port": 3000
+      }
+    }
+  }
+}
