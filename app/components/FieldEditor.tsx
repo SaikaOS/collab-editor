@@ -1,8 +1,5 @@
-import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Collaboration from '@tiptap/extension-collaboration'
-import CollaborationCaret from '@tiptap/extension-collaboration-caret'
-import { useEffect, useState } from 'react'
+'use client'
+import { useEffect, useState, useRef } from 'react'
 import * as Y from 'yjs'
 import { User, AwarenessState } from '../types/types'
 import { WebsocketProvider } from 'y-websocket'
@@ -18,115 +15,140 @@ interface FieldEditorProps {
 const FieldEditor = ({ ydoc, provider, fieldName, currentUser, label }: FieldEditorProps) => {
   const [isLocked, setIsLocked] = useState(false);
   const [lockedBy, setLockedBy] = useState<User | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
+  const [textWidth, setTextWidth] = useState(0);
+  
+  const yText = ydoc.getText(fieldName);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ undoRedo: false }),
-      Collaboration.configure({ document: ydoc, field: fieldName }),
-      CollaborationCaret.configure({ provider, user: currentUser }),
-    ],
-    immediatelyRender: false,
-    editorProps: {
-      attributes: {
-        class: 'focus:outline-none min-h-[40px] p-2 bg-white rounded border-none w-full prose prose-sm max-w-none',
-      },
-    },
-  });
+  const [value, setValue] = useState(() => yText.toString());
 
   useEffect(() => {
-    if (editor) {
-      editor.setOptions({
-        editable: !isLocked,
-      });
+    if (measureRef.current) {
+      setTextWidth(measureRef.current.offsetWidth);
     }
-  }, [isLocked, editor]);
+  }, [value, isLocked]);
 
   useEffect(() => {
-    const awareness = provider.awareness;
-    if (!awareness) return;
+    const handleYjsChange = (event: Y.YTextEvent) => {
+      if (event.transaction.origin !== provider.awareness.clientID) {
+        setValue(yText.toString());
+      }
+    };
+    yText.observe(handleYjsChange);
 
     const handleAwareness = () => {
+      const awareness = provider.awareness;
       const states = awareness.getStates() as Map<number, AwarenessState>;
       let foundLock: User | null = null;
-
       states.forEach((state, clientID) => {
         if (clientID !== awareness.clientID && state.focusedField === fieldName) {
           foundLock = state.user;
         }
       });
-
       setLockedBy(foundLock);
       setIsLocked(!!foundLock);
     };
 
-    awareness.on('change', handleAwareness);
-    return () => awareness.off('change', handleAwareness);
-  }, [provider, fieldName]);
-
-  useEffect(() => {
-    const awareness = provider.awareness;
-    if (!editor || !awareness) return;
-
-    const onFocus = () => {
-      awareness.setLocalStateField('focusedField', fieldName);
-    };
-
-    const onBlur = () => {
-      const currentState = awareness.getLocalState() as AwarenessState | null;
-      if (currentState?.focusedField === fieldName) {
-        awareness.setLocalStateField('focusedField', null);
-      }
-    };
-
-    editor.on('focus', onFocus);
-    editor.on('blur', onBlur);
-
+    provider.awareness.on('change', handleAwareness);
     return () => {
-      editor.off('focus', onFocus);
-      editor.off('blur', onBlur);
+      yText.unobserve(handleYjsChange);
+      provider.awareness.off('change', handleAwareness);
     };
-  }, [editor, provider.awareness, fieldName]);
+  }, [yText, fieldName, provider]); 
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setValue(newValue);
+    ydoc.transact(() => {
+      yText.delete(0, yText.length);
+      yText.insert(0, newValue);
+    }, provider.awareness.clientID);
+  };
+
+  const onFocus = () => {
+    setIsFocused(true);
+    provider.awareness.setLocalStateField('focusedField', fieldName);
+  };
+
+  const onBlur = () => {
+    setIsFocused(false);
+    const currentState = provider.awareness.getLocalState() as AwarenessState | null;
+    if (currentState?.focusedField === fieldName) {
+      provider.awareness.setLocalStateField('focusedField', null);
+    }
+  };
 
   const handleForceUnlock = () => {
-    const awareness = provider.awareness;
-    if (!awareness || !editor) return;
-
     setIsLocked(false);
-    setLockedBy(null);
-
-    awareness.setLocalStateField('focusedField', fieldName);
-
-    editor.setOptions({ editable: true });
-    
     setTimeout(() => {
-      editor.chain().focus().run();
+      inputRef.current?.focus();
     }, 10);
   };
 
   return (
-    <div className="mb-8 relative" style={{ zIndex: editor?.isFocused ? 20 : 1 }}>
-      <div className="flex justify-between items-end mb-1">
-        <label className="text-sm font-bold text-gray-600 uppercase tracking-wider">{label}</label>
+    <div className="mb-8 relative" style={{ zIndex: isFocused ? 20 : 1 }}>
+      <div className="flex justify-between items-center mb-2 h-6">
+        <label className="text-sm font-bold text-gray-600 uppercase tracking-wider">
+          {label}
+        </label>
+        
         {isLocked && (
-          <button 
-            onClick={handleForceUnlock}
-            className="text-[11px] cursor-pointer bg-red-400 text-white px-2 py-1 rounded-md"
-          >
-            Вытеснить {lockedBy?.name}
-          </button>
+          <div className="flex items-center gap-3">
+             <button 
+                onClick={handleForceUnlock}
+                className="text-[11px] cursor-pointer bg-red-400 text-white px-2 py-1 rounded-md"
+              >
+                Вытеснить
+              </button>
+          </div>
         )}
       </div>
       
       <div 
-        className={`relative transition-all duration-300 border-2 rounded-xl overflow-hidden ${
-          isLocked ? 'bg-gray-50 border-gray-200' : 'bg-white shadow-sm border-gray-200'
-        }`}
+        className="relative flex items-center border-2 rounded-xl bg-white px-3 h-13"
         style={{ 
-          borderColor: isLocked ? lockedBy?.color : (editor?.isFocused ? currentUser?.color : '#e2e8f0'),
-          boxShadow: editor?.isFocused ? `0 0 0 4px ${currentUser?.color}20` : 'none'
+          borderColor: isLocked ? lockedBy?.color : (isFocused ? currentUser?.color : '#e2e8f0'),
+          boxShadow: isFocused ? `0 0 0 4px ${currentUser?.color}20` : 'none'
         }}
       >
-        <EditorContent editor={editor} />
+        <span ref={measureRef} className="absolute invisible whitespace-pre text-base font-sans px-0">
+          {value}
+        </span>
+
+        {isLocked && lockedBy && (
+          <div 
+            className="absolute flex flex-col items-start z-20"
+            style={{ 
+              left: `${Math.min(textWidth + 12, 500)}px`, 
+              height: '24px'
+            }}
+          >
+            <div 
+              className="w-0.5 h-6 animate-pulse" 
+              style={{ backgroundColor: lockedBy.color }}
+            />
+            <div 
+              className="absolute -top-5 left-0 px-1.5 py-0.5 rounded-sm text-[9px] text-white font-black whitespace-nowrap shadow-sm"
+              style={{ backgroundColor: lockedBy.color }}
+            >
+              {lockedBy.name.toUpperCase()}
+            </div>
+          </div>
+        )}
+
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={handleChange}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          disabled={isLocked}
+          className="w-full h-full outline-none bg-transparent text-gray-800 text-base font-sans disabled:cursor-not-allowed z-10"
+          placeholder={isLocked ? "" : "Введите значение..."}
+        />
       </div>
     </div>
   );

@@ -83,7 +83,7 @@ const App = () => {
               <h1 className="text-lg font-bold text-gray-900">Проект №1</h1>
               <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                <span className="text-xs text-gray-400 font-medium">WebRTC активен</span>
+                <span className="text-xs text-gray-400 font-medium">Websocket активен</span>
               </div>
             </div>
           </div>
