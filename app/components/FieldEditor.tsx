@@ -5,13 +5,13 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import { useEffect, useState } from 'react'
 import * as Y from 'yjs'
 import { User, AwarenessState } from '../types/types'
-import TiptapCollabProvider from '@tiptap-pro/provider'
+import { WebrtcProvider } from 'y-webrtc'
 
 interface FieldEditorProps {
   ydoc: Y.Doc;
-  provider: TiptapCollabProvider; 
+  provider: WebrtcProvider; 
   fieldName: string;
-  currentUser: User;
+  currentUser: User | undefined;
   label: string;
 }
 
@@ -122,8 +122,8 @@ const FieldEditor = ({ ydoc, provider, fieldName, currentUser, label }: FieldEdi
           isLocked ? 'bg-gray-50 border-gray-200' : 'bg-white shadow-sm border-gray-200'
         }`}
         style={{ 
-          borderColor: isLocked ? lockedBy?.color : (editor?.isFocused ? currentUser.color : '#e2e8f0'),
-          boxShadow: editor?.isFocused ? `0 0 0 4px ${currentUser.color}20` : 'none'
+          borderColor: isLocked ? lockedBy?.color : (editor?.isFocused ? currentUser?.color : '#e2e8f0'),
+          boxShadow: editor?.isFocused ? `0 0 0 4px ${currentUser?.color}20` : 'none'
         }}
       >
         <EditorContent editor={editor} />
