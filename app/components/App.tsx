@@ -28,7 +28,6 @@ const App = () => {
       setActiveUsers(users);
     };
 
-    // Подписываемся на изменения awareness (кто онлайн)
     provider.awareness.on('change', updateUsers);
     
     updateUsers();
