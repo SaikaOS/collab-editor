@@ -1,16 +1,14 @@
 'use client'
 import * as Y from 'yjs'
 import { useState, useEffect } from 'react'
-import { WebrtcProvider } from 'y-webrtc'
 import FieldEditor from './FieldEditor'
 import { User, USERS, AwarenessState } from '../types/types'
+import { WebsocketProvider } from 'y-websocket'
 
 const roomName = 'collab-editor-v1'
 
 const ydoc = new Y.Doc()
-const provider = typeof window !== 'undefined' 
-  ? new WebrtcProvider(roomName, ydoc) 
-  : null
+const provider = new WebsocketProvider('ws://localhost:1234', roomName, ydoc)
 
 const App = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -20,7 +18,7 @@ const App = () => {
     if (!provider) return;
 
     const updateUsers = () => {
-      const states = provider.awareness.getStates() as Map<number, AwarenessState>;
+      const states = provider.awareness?.getStates() as Map<number, AwarenessState>;
       const users: User[] = [];
       states.forEach((state) => {
         if (state.user) users.push(state.user);
@@ -28,17 +26,17 @@ const App = () => {
       setActiveUsers(users);
     };
 
-    provider.awareness.on('change', updateUsers);
+    provider.awareness?.on('change', updateUsers);
     
     updateUsers();
 
-    return () => provider.awareness.off('change', updateUsers);
+    return () => provider.awareness?.off('change', updateUsers);
   }, []);
 
   const handleUserSelect = (u: User) => {
     setSelectedUser(u);
     if (provider) {
-      provider.awareness.setLocalStateField('user', u);
+      provider.awareness?.setLocalStateField('user', u);
     }
   };
 

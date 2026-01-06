@@ -5,11 +5,11 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import { useEffect, useState } from 'react'
 import * as Y from 'yjs'
 import { User, AwarenessState } from '../types/types'
-import { WebrtcProvider } from 'y-webrtc'
+import { WebsocketProvider } from 'y-websocket'
 
 interface FieldEditorProps {
   ydoc: Y.Doc;
-  provider: WebrtcProvider; 
+  provider: WebsocketProvider; 
   fieldName: string;
   currentUser: User | undefined;
   label: string;

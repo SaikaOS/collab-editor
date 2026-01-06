@@ -38,7 +38,6 @@
     @apply bg-yellow-200 rounded px-1;
   }
 
-  /* Стили каретки (Collaboration) */
   .collaboration-carets__caret {
     @apply relative border-l border-r border-black -mx-px pointer-events-none;
   }
